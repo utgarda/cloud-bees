@@ -13,11 +13,14 @@ import GHC.Generics (Generic)
 import Text.Read (readMaybe)
 
 import Types
+import Data.Blockchain.Mining
+import Data.Blockchain.Types
 
 -- тип комманды
 data Command
   = Add Flower
   | Show
+  | Genesis
   deriving (Typeable, Generic, Read) -- с помощью Read можно считывать комманду из REPL
 
 instance Binary Command
@@ -26,6 +29,7 @@ instance Binary Command
 data Answer
   = Added Flower
   | HereUR FlowerList
+  | GenesisMined -- TODO Block?
   deriving (Typeable, Generic, Show)
 
 instance Binary Answer

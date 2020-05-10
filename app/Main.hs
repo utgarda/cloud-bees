@@ -17,10 +17,11 @@ import System.Environment (getArgs)
 
 import Repl
 import Types
+import Chain
 
 -- информация, не меняющаяся во время существования ноды
 newtype NodeConfig =
-  NodeConfig ProcessId
+  NodeConfig (ProcessId, ProcessId)
 
 -- тип данных для того, чтобы оповещать основной поток тогда,
 data Tick =
@@ -30,7 +31,7 @@ data Tick =
 instance Binary Tick -- Tick теперь поддерживает сериализацию
 
 runNode :: NodeConfig -> Flowers -> Process () -- функция выполнения ноды
-runNode config@(NodeConfig repl) flowers = do
+runNode config@(NodeConfig (repl, chain)) flowers = do
   let run = runNode config
   receiveWait -- ждем сообщений
     [ match
@@ -44,7 +45,13 @@ runNode config@(NodeConfig repl) flowers = do
              Show -- запрос показать цветочки
               -> do
                send repl (HereUR $ toList flowers) -- отправить цветочки в виде списка
-               run flowers)
+               run flowers
+             Genesis
+              -> do
+               send chain MineGenesis --TODO connect the dots
+               send repl GenesisMined
+               run flowers
+        )
     , match
         (\Tick -- сигнал о том, что надо поделиться своим состоянием с другими
           -> do
@@ -63,13 +70,14 @@ spawnNode = do
   let flowers = S.initial :: Flowers -- инициализирум GSet координат цветков
   self <- getSelfPid -- получаем наш Pid чтобы REPL мог посылать нам сообщения
   repl <- spawnLocal $ runRepl self -- создаем REPL в отдельном потоке
+  chain <- spawnLocal $ runChain self
   register "bees" self -- теперь нода будет получать сообщения из канала "bees"
   spawnLocal $
     forever $ -- запускаем тикер:
      do
       send self Tick -- оповестить основной поток что надо передать пирам свое состояние
       liftIO $ threadDelay $ 10 ^ 6 -- ждемс 0.1 секунды перед тем, как снова отослать состояние
-  runNode (NodeConfig repl) flowers -- запускаем ноду
+  runNode (NodeConfig (repl, chain)) flowers -- запускаем ноду
 
 main = do
   [port, bootstrapPort] <- getArgs -- считываем порт ноды и bootstrap ноды
