@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 module Chain
--- (
---     runChain,
---     CryptoCommand,
---     MineGenesis
--- ) 
+(
+    runChain,
+    CryptoCommand(..),
+    CryptoEvent(..)
+) 
 where
 
 import Control.Distributed.Process
@@ -32,6 +32,12 @@ data CryptoCommand
 
 instance Binary CryptoCommand
 
+data CryptoEvent 
+    = Mined String
+  deriving (Typeable, Generic, Show)
+
+instance Binary CryptoEvent
+
 runChain :: ProcessId -> Process ()
 runChain parent = do
   forever $ do
@@ -39,5 +45,6 @@ runChain parent = do
     case (command :: CryptoCommand) of
       MineGenesis
        -> do
+        liftIO $ print "mining block"
         block <- liftIO genesis
-        liftIO $ print block
+        send parent $ Mined $ show block --TODO update state 

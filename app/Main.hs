@@ -48,9 +48,11 @@ runNode config@(NodeConfig (repl, chain)) flowers = do
                run flowers
              Genesis
               -> do
-               send chain MineGenesis --TODO connect the dots
+               send chain MineGenesis
+               answer <- expect :: Process CryptoEvent
+               liftIO $ print answer
                send repl GenesisMined
-               run flowers
+               run flowers --TODO update state
         )
     , match
         (\Tick -- сигнал о том, что надо поделиться своим состоянием с другими
